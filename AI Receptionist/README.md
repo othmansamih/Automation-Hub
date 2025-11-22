@@ -287,22 +287,7 @@ Your appointment is confirmed for tomorrow at 3:00 PM. We look forward to seeing
 - Check webhook URLs are correct in ElevenLabs
 - Verify your n8n instance is publicly accessible
 - Review n8n execution logs for errors
-
-## 🔄 Future Enhancements
-
-Potential improvements to consider:
-- Multi-language support
-- SMS confirmation messages
-- Email notifications
-- Cancellation/rescheduling capabilities
-- Integration with patient management systems
-- Analytics and reporting dashboard
-- Multiple provider/room support
-- Waiting list management
-
-## 📄 License
-
-This project is provided as-is for educational and commercial use. Modify as needed for your specific requirements.
+  
 
 ## 🤝 Contributing
 
