@@ -1,0 +1,246 @@
+{
+  "name": "AL Mada Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "availability",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7a7b42e7-d893-4457-9d86-92c09eaa81d5",
+      "name": "Availabilty Webhook",
+      "webhookId": "2668c717-fb68-4406-a6f3-1548a78d833c"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "agentrius@gmail.com",
+          "mode": "list",
+          "cachedResultName": "agentrius@gmail.com"
+        },
+        "returnAll": true,
+        "timeMin": "={{ DateTime.fromISO($json.body.date, { zone: 'Europe/Paris' }).set({ hour: 9, minute: 0 }).toISO() }}",
+        "timeMax": "={{ DateTime.fromISO($json.body.date, { zone: 'Europe/Paris' }).set({ hour: 18, minute: 0 }).toISO() }}",
+        "options": {
+          "fields": "items(id,start,end)"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        0
+      ],
+      "id": "853d9602-515c-4265-9661-9cd082f346a4",
+      "name": "Get Booked Events",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "btN5TyJB1YpUp8JG",
+          "name": "Google Calendar agentrius@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the input date from webhook\nconst inputDate = $('Availabilty Webhook').first().json.body.date;\n\n// Define working hours\nconst startHour = 9;\nconst endHour = 18;\nconst slotDuration = 30; // minutes\n\n// Get all events from Google Calendar\nconst events = $input.all().map(item => item.json);\n\n// Parse the date and create start/end times for the day\nconst dayStart = new Date(`${inputDate}T09:00:00+01:00`);\nconst dayEnd = new Date(`${inputDate}T18:00:00+01:00`);\n\n// Create array of all possible 30-min slots\nconst allSlots = [];\nlet currentSlot = new Date(dayStart);\n\nwhile (currentSlot < dayEnd) {\n  const slotEnd = new Date(currentSlot.getTime() + slotDuration * 60000);\n  \n  allSlots.push({\n    start: new Date(currentSlot),\n    end: slotEnd\n  });\n  \n  currentSlot = slotEnd;\n}\n\n// Filter out slots that overlap with existing events\nconst availableSlots = allSlots.filter(slot => {\n  // Check if this slot overlaps with any event\n  const hasConflict = events.some(event => {\n    if (!event.start || !event.end) return false;\n    \n    const eventStart = new Date(event.start.dateTime);\n    const eventEnd = new Date(event.end.dateTime);\n    \n    // Check for overlap: slot starts before event ends AND slot ends after event starts\n    return slot.start < eventEnd && slot.end > eventStart;\n  });\n  \n  return !hasConflict;\n});\n\n// Format output\nreturn availableSlots.map(slot => ({\n  json: {\n    date: inputDate,\n    startTime: slot.start.toISOString(),\n    endTime: slot.end.toISOString(),\n    startTimeFormatted: slot.start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }),\n    endTimeFormatted: slot.end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "5e0d4e1f-dec0-40a8-b031-8938a5a0b938",
+      "name": "Get Available Events",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        656,
+        0
+      ],
+      "id": "4bd80723-abeb-42e0-a87b-0d62e8a72de8",
+      "name": "Respond to Availability Webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "book",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        128,
+        304
+      ],
+      "id": "94f77039-cd02-40f6-9382-16df73e1c96e",
+      "name": "Booking Webhook",
+      "webhookId": "c22ae036-90f9-476d-aa2c-bdbf0a524811"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "agentrius@gmail.com",
+          "mode": "list",
+          "cachedResultName": "agentrius@gmail.com"
+        },
+        "start": "={{ $json.body.startTime }}",
+        "end": "={{ $json.body.endTime }}",
+        "additionalFields": {
+          "color": "2",
+          "description": "=Full name: {{ $json.body.full_name }}\nDate of birth: {{ $json.body.date_of_birth }}\nPhone number: {{ $json.body.phone }}\nReason: {{ $json.body.reason }}",
+          "location": "AL Mada Clinic - Casablanca",
+          "summary": "={{ $json.body.full_name }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        336,
+        304
+      ],
+      "id": "5781effe-88a6-4e30-915a-2cbd871804a4",
+      "name": "Book an Appointment",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "btN5TyJB1YpUp8JG",
+          "name": "Google Calendar agentrius@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        544,
+        304
+      ],
+      "id": "467cb4a2-5bfc-4c06-b526-2e3af0217b84",
+      "name": "Respond to Booking Webhook"
+    },
+    {
+      "parameters": {
+        "content": "## Check the Availability",
+        "height": 272,
+        "width": 1008,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -80,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "f7078779-93da-407f-9aa8-49466b660774",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Book an Appointment\n",
+        "height": 272,
+        "width": 1008,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -80,
+        224
+      ],
+      "typeVersion": 1,
+      "id": "3fc55013-0b0a-494f-b8ee-cb5d0fec63d9",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Availabilty Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Booked Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Booked Events": {
+      "main": [
+        [
+          {
+            "node": "Get Available Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Available Events": {
+      "main": [
+        [
+          {
+            "node": "Respond to Availability Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Booking Webhook": {
+      "main": [
+        [
+          {
+            "node": "Book an Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Book an Appointment": {
+      "main": [
+        [
+          {
+            "node": "Respond to Booking Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0bad5647-4937-420c-9e4e-bd2f620d2261",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c008c4fc81ebed9cb77d7c6919c1daf22f57e257b529266eb66e9043ed599295"
+  },
+  "id": "kpSORW0bIfBYMPzA",
+  "tags": []
+}
